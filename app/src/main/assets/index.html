@@ -159,8 +159,26 @@ function analyze(){
  document.getElementById("status").textContent="Analysis complete using the latest available GitHub dataset.";
  render(x,String(pick(x,["symbol","ticker","code"])||q).toUpperCase());
 }
-function load(){
+async function load(){
     document.getElementById("status").textContent="Loading stock dataset...";
+
+    try{
+        const r=await fetch(DATA_URL+"?t="+Date.now());
+
+        if(!r.ok) throw new Error("HTTP "+r.status);
+
+        const data=await r.json();
+
+        db=data;
+
+        document.getElementById("status").textContent=
+            "Stock dataset loaded: "+(data.stocks?.length || 0)+" stocks.";
+    }catch(e){
+        console.error(e);
+
+        document.getElementById("status").textContent=
+            "Could not load stock dataset: "+e.message;
+    }
 }
 document.getElementById("q").addEventListener("input",e=>showSuggestions(e.target.value));
 
