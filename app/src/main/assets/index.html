@@ -28,7 +28,7 @@ table{width:100%;border-collapse:collapse}td{padding:9px;border-bottom:1px solid
 <div class="card"><p class="small">Data source: your GitHub <code>data/stocks.json</code>. This app provides research signals, not guaranteed predictions or investment advice.</p></div>
 </main>
 <script>
-const DATA_URL="https://raw.githubusercontent.com/shivsmile-spec/share_suggest_pro/main/data/stocks.json";
+const DATA_URL="stocks.json";
 let db=null;
 const n=v=>Number.isFinite(Number(v))?Number(v):null;
 function pick(o, keys){for(const k of keys){if(o&&o[k]!==undefined&&o[k]!==null&&o[k]!=="")return o[k]}return null}
