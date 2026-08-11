@@ -30,6 +30,10 @@ table{width:100%;border-collapse:collapse}td{padding:9px;border-bottom:1px solid
 <script>
 const DATA_URL="stocks.json";
 let db=null;
+ window.setStockData=function(data){
+    db=data;
+    document.getElementById("status").textContent="Stock dataset loaded.";
+};
 const n=v=>Number.isFinite(Number(v))?Number(v):null;
 function pick(o, keys){for(const k of keys){if(o&&o[k]!==undefined&&o[k]!==null&&o[k]!=="")return o[k]}return null}
 function pct(x){return x==null?"—":Number(x).toFixed(1)}
@@ -155,9 +159,8 @@ function analyze(){
  document.getElementById("status").textContent="Analysis complete using the latest available GitHub dataset.";
  render(x,String(pick(x,["symbol","ticker","code"])||q).toUpperCase());
 }
-async function load(){
- try{let r=await fetch(DATA_URL+"?t="+Date.now()); if(!r.ok)throw new Error(r.status); db=await r.json(); document.getElementById("status").textContent="Dataset loaded. Enter an NSE symbol to analyze."}
- catch(e){document.getElementById("status").textContent="Could not load GitHub market data. Check your repository data/stocks.json and internet connection."}
+function load(){
+    document.getElementById("status").textContent="Loading stock dataset...";
 }
 document.getElementById("q").addEventListener("input",e=>showSuggestions(e.target.value));
 
