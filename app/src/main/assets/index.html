@@ -10,12 +10,19 @@ main{max-width:900px;margin:auto;padding:14px}.card{background:white;border-radi
 .score{margin-top:14px;border:1px solid #e2e8f0;border-radius:12px;padding:14px}.score h2{margin:0 0 5px}.bar{height:10px;background:#e2e8f0;border-radius:20px;overflow:hidden}.fill{height:100%;background:#2563eb}.good{color:#00875a}.bad{color:#d9480f}.warn{color:#b45309}
 table{width:100%;border-collapse:collapse}td{padding:9px;border-bottom:1px solid #e5e7eb}.small{font-size:12px;color:#64748b}
 @media(min-width:650px){.grid{grid-template-columns:repeat(4,1fr)}}
+ .search-box{position:relative;flex:1}
+.suggestions{position:absolute;left:0;right:0;top:100%;background:white;border:1px solid #cbd5e1;border-radius:10px;margin-top:4px;z-index:1000;box-shadow:0 4px 12px rgba(0,0,0,.15);display:none;overflow:hidden}
+.suggestion{padding:12px 14px;border-bottom:1px solid #e5e7eb;cursor:pointer}
+.suggestion:last-child{border-bottom:none}
+.suggestion:hover{background:#f1f5f9}
+.suggestion strong{display:block;font-size:15px;color:#172033}
+.suggestion small{display:block;font-size:12px;color:#64748b;margin-top:3px}
 </style></head>
 <body>
 <header><h1>🇮🇳 Indian Stock Pro</h1><p>Short-term + dividend + swing research assistant</p></header>
 <main>
 <div class="card"><h2>Search & Analyze</h2><div class="search">
-<input id="q" placeholder="Enter NSE symbol e.g. HINDPETRO"><button onclick="analyze()">Analyze</button>
+<div class="search-box"><input id="q" placeholder="Search NSE stock or company name" autocomplete="off"><div id="suggestions" class="suggestions"></div></div><button onclick="analyze()">Analyze</button>
 </div><div id="status" class="status">Loading latest dataset…</div></div>
 <div id="out"></div>
 <div class="card"><p class="small">Data source: your GitHub <code>data/stocks.json</code>. This app provides research signals, not guaranteed predictions or investment advice.</p></div>
@@ -78,8 +85,51 @@ function find(q){
  q=q.trim().toUpperCase();
  return arr.find(x=>String(pick(x,["symbol","ticker","code"])||"").toUpperCase()===q) ||
         arr.find(x=>String(pick(x,["company","name","companyName"])||"").toUpperCase().includes(q));
+ function showSuggestions(q){
+  const box=document.getElementById("suggestions");
+  if(!db || !q.trim()){
+    box.innerHTML="";
+    box.style.display="none";
+    return;
+  }
+
+  let arr=Array.isArray(db)?db:(db.stocks||db.data||db.items||[]);
+  const term=q.trim().toUpperCase();
+
+  const matches=arr.filter(x=>{
+    const symbol=String(pick(x,["symbol","ticker","code"])||"");
+    const company=String(pick(x,["company","name","companyName"])||"");
+    return symbol.toUpperCase().includes(term) ||
+           company.toUpperCase().includes(term);
+  }).slice(0,8);
+
+  if(!matches.length){
+    box.innerHTML="";
+    box.style.display="none";
+    return;
+  }
+
+  box.innerHTML=matches.map(x=>{
+    const symbol=String(pick(x,["symbol","ticker","code"])||"");
+    const company=String(pick(x,["company","name","companyName"])||"");
+    return `<div class="suggestion" onclick="selectSuggestion('${symbol.replace(/'/g,"&#39;")}')">
+      <strong>${company}</strong>
+      <small>NSE: ${symbol}</small>
+    </div>`;
+  }).join("");
+
+  box.style.display="block";
 }
-function render(o,x){
+
+function selectSuggestion(symbol){
+  const input=document.getElementById("q");
+  input.value=symbol;
+  document.getElementById("suggestions").innerHTML="";
+  document.getElementById("suggestions").style.display="none";
+  input.focus();
+}
+
+ function render(o,x){
  const s=calc(o); const company=pick(o,["company","companyName","name"])||x;
  const rows=[["Price",money(s.price)],["Day change",s.change==null?"—":(s.change>=0?"+":"")+s.change.toFixed(2)+"%"],["RSI 14",pct(s.rsi)],["MACD",s.macd==null?"—":s.macd.toFixed(3)],["ADX",pct(s.adx)],["ATR",money(s.atr)],["Volume ratio",s.volumeRatio==null?"—":s.volumeRatio.toFixed(2)+"×"],["Support",money(s.support)],["Resistance",money(s.resistance)],["20D momentum",s.m20==null?"—":s.m20.toFixed(2)+"%"]];
  document.getElementById("out").innerHTML=`
@@ -109,6 +159,21 @@ async function load(){
  try{let r=await fetch(DATA_URL+"?t="+Date.now()); if(!r.ok)throw new Error(r.status); db=await r.json(); document.getElementById("status").textContent="Dataset loaded. Enter an NSE symbol to analyze."}
  catch(e){document.getElementById("status").textContent="Could not load GitHub market data. Check your repository data/stocks.json and internet connection."}
 }
-document.getElementById("q").addEventListener("keydown",e=>{if(e.key==="Enter")analyze()});
+document.getElementById("q").addEventListener("input",e=>showSuggestions(e.target.value));
+
+document.getElementById("q").addEventListener("keydown",e=>{
+  if(e.key==="Enter"){
+    document.getElementById("suggestions").innerHTML="";
+    document.getElementById("suggestions").style.display="none";
+    analyze();
+  }
+});
+
+document.addEventListener("click",e=>{
+  if(!e.target.closest(".search-box")){
+    document.getElementById("suggestions").innerHTML="";
+    document.getElementById("suggestions").style.display="none";
+  }
+});
 load();
 </script></body></html>
