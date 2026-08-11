@@ -15,15 +15,16 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
 
         WebView web = findViewById(R.id.webView);
-        WebSettings s = web.getSettings();
-        s.setJavaScriptEnabled(true);
-        s.setDomStorageEnabled(true);
-        s.setAllowFileAccess(true);
-        s.setAllowUniversalAccessFromFileURLs(true);
-        s.setAllowContentAccess(true);
-        s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
-        web.setWebViewClient(new WebViewClient());
-        web.loadUrl("file:///android_asset/index.html");
+       WebSettings s = web.getSettings();
+s.setJavaScriptEnabled(true);
+s.setDomStorageEnabled(true);
+s.setAllowFileAccess(true);
+s.setAllowFileAccessFromFileURLs(true);
+s.setAllowUniversalAccessFromFileURLs(true);
+s.setAllowContentAccess(true);
+s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
+web.setWebViewClient(new WebViewClient());
+web.loadUrl("file:///android_asset/index.html");
     }
 
     @Override
