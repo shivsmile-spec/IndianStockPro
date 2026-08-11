@@ -1,0 +1,114 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Indian Stock Pro</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f3f6fa;color:#172033;font-family:Arial,sans-serif}
+header{background:#0f172a;color:white;padding:20px 16px}header h1{margin:0 0 6px;font-size:24px}header p{margin:0;color:#cbd5e1}
+main{max-width:900px;margin:auto;padding:14px}.card{background:white;border-radius:14px;padding:16px;margin:12px 0;box-shadow:0 2px 10px #00000010}
+.search{display:flex;gap:8px}.search input{flex:1;padding:14px;border:1px solid #cbd5e1;border-radius:10px;font-size:16px}.search button{background:#0f172a;color:white;border:0;border-radius:10px;padding:0 18px;font-weight:bold}
+.status{padding:10px;border-radius:9px;background:#f8fafc;margin-top:10px}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.metric{background:#f8fafc;border-radius:10px;padding:13px}.label{font-size:12px;color:#64748b}.value{font-size:20px;font-weight:bold;margin-top:5px}
+.score{margin-top:14px;border:1px solid #e2e8f0;border-radius:12px;padding:14px}.score h2{margin:0 0 5px}.bar{height:10px;background:#e2e8f0;border-radius:20px;overflow:hidden}.fill{height:100%;background:#2563eb}.good{color:#00875a}.bad{color:#d9480f}.warn{color:#b45309}
+table{width:100%;border-collapse:collapse}td{padding:9px;border-bottom:1px solid #e5e7eb}.small{font-size:12px;color:#64748b}
+@media(min-width:650px){.grid{grid-template-columns:repeat(4,1fr)}}
+</style></head>
+<body>
+<header><h1>🇮🇳 Indian Stock Pro</h1><p>Short-term + dividend + swing research assistant</p></header>
+<main>
+<div class="card"><h2>Search & Analyze</h2><div class="search">
+<input id="q" placeholder="Enter NSE symbol e.g. HINDPETRO"><button onclick="analyze()">Analyze</button>
+</div><div id="status" class="status">Loading latest dataset…</div></div>
+<div id="out"></div>
+<div class="card"><p class="small">Data source: your GitHub <code>data/stocks.json</code>. This app provides research signals, not guaranteed predictions or investment advice.</p></div>
+</main>
+<script>
+const DATA_URL="https://raw.githubusercontent.com/shivsmile-spec/share_suggest_pro/main/data/stocks.json";
+let db=null;
+const n=v=>Number.isFinite(Number(v))?Number(v):null;
+function pick(o, keys){for(const k of keys){if(o&&o[k]!==undefined&&o[k]!==null&&o[k]!=="")return o[k]}return null}
+function pct(x){return x==null?"—":Number(x).toFixed(1)}
+function money(x){return x==null?"—":"₹"+Number(x).toLocaleString("en-IN",{maximumFractionDigits:2})}
+function scoreColor(s){return s>=70?"good":s>=45?"warn":"bad"}
+function calc(o){
+ let price=n(pick(o,["price","currentPrice","lastPrice","regularMarketPrice"]));
+ let rsi=n(pick(o,["rsi","rsi14","RSI14"]));
+ let macd=n(pick(o,["macd","MACD"]));
+ let adx=n(pick(o,["adx","ADX"]));
+ let atr=n(pick(o,["atr","ATR"]));
+ let volume=n(pick(o,["volume","regularMarketVolume"]));
+ let avgVol=n(pick(o,["avgVolume","averageVolume","volumeAvg"]));
+ let change=n(pick(o,["changePct","dayChangePct","regularMarketChangePercent"]));
+ let dividend=n(pick(o,["dividend","dividendAmount","lastDividend"]));
+ let exDate=pick(o,["exDate","exDividendDate","ex_date"]);
+ let support=n(pick(o,["support","support20"]));
+ let resistance=n(pick(o,["resistance","resistance20"]));
+ let ma20=n(pick(o,["ma20","sma20","movingAverage20"]));
+ let ma50=n(pick(o,["ma50","sma50","movingAverage50"]));
+ let ma200=n(pick(o,["ma200","sma200","movingAverage200"]));
+ let m5=n(pick(o,["momentum5","return5d","change5d"]));
+ let m20=n(pick(o,["momentum20","return20d","change20d"]));
+ let volumeRatio=volume&&avgVol?volume/avgVol:null;
+ let short=50;
+ if(rsi!=null) short += rsi>=45&&rsi<=65?12:rsi<30?8:rsi>70?-14:-4;
+ if(macd!=null) short += macd>0?10:-8;
+ if(ma20!=null&&price!=null) short += price>ma20?8:-8;
+ if(ma50!=null&&price!=null) short += price>ma50?7:-7;
+ if(m5!=null) short += m5>0?8:-8;
+ if(volumeRatio!=null) short += volumeRatio>=1.3?6:volumeRatio<0.7?-4:0;
+ short=Math.max(0,Math.min(100,short));
+ let swing=short;
+ if(adx!=null) swing += adx>=25?8:adx<15?-5:0;
+ if(ma200!=null&&price!=null) swing += price>ma200?8:-8;
+ swing=Math.max(0,Math.min(100,swing));
+ let div=0;
+ if(dividend!=null&&dividend>0) div+=45;
+ if(exDate) div+=25;
+ if(price!=null&&dividend!=null) div+=Math.min(20,(dividend/price)*100*5);
+ div=Math.min(100,Math.round(div));
+ let long=40;
+ if(ma200!=null&&price!=null) long+=price>ma200?20:-15;
+ if(ma50!=null&&price!=null) long+=price>ma50?10:-8;
+ if(adx!=null&&adx>20) long+=8;
+ long=Math.max(0,Math.min(100,long));
+ let verdict=short>=70?"BUY CANDIDATE":short>=55?"WATCH / WAIT": "NO CLEAR BUY";
+ return {price,rsi,macd,adx,atr,volume,avgVol,volumeRatio,change,dividend,exDate,support,resistance,ma20,ma50,ma200,m5,m20,short,swing,div,long,verdict};
+}
+function find(q){
+ if(!db)return null;
+ let arr=Array.isArray(db)?db:(db.stocks||db.data||db.items||[]);
+ q=q.trim().toUpperCase();
+ return arr.find(x=>String(pick(x,["symbol","ticker","code"])||"").toUpperCase()===q) ||
+        arr.find(x=>String(pick(x,["company","name","companyName"])||"").toUpperCase().includes(q));
+}
+function render(o,x){
+ const s=calc(o); const company=pick(o,["company","companyName","name"])||x;
+ const rows=[["Price",money(s.price)],["Day change",s.change==null?"—":(s.change>=0?"+":"")+s.change.toFixed(2)+"%"],["RSI 14",pct(s.rsi)],["MACD",s.macd==null?"—":s.macd.toFixed(3)],["ADX",pct(s.adx)],["ATR",money(s.atr)],["Volume ratio",s.volumeRatio==null?"—":s.volumeRatio.toFixed(2)+"×"],["Support",money(s.support)],["Resistance",money(s.resistance)],["20D momentum",s.m20==null?"—":s.m20.toFixed(2)+"%"]];
+ document.getElementById("out").innerHTML=`
+ <div class="card"><h2>${company} <span class="small">${x}</span></h2><div class="grid">
+ <div class="metric"><div class="label">Latest price</div><div class="value">${money(s.price)}</div></div>
+ <div class="metric"><div class="label">RSI 14</div><div class="value">${pct(s.rsi)}</div></div>
+ <div class="metric"><div class="label">Dividend</div><div class="value">${money(s.dividend)}</div></div>
+ <div class="metric"><div class="label">Ex-date</div><div class="value">${s.exDate||"—"}</div></div></div></div>
+ <div class="card"><h2>Four separate decisions</h2><div class="grid">
+ ${box("⚡ 1–2 Day Trade",s.short,s.short>=70?"Strong setup":s.short>=55?"Watch / wait":"Weak short-term setup")}
+ ${box("📈 Swing",s.swing,s.swing>=70?"Strong":"Weak / watch")}
+ ${box("💰 Dividend",s.div,s.div>=70?"Strong dividend catalyst":s.div>0?"Dividend detected":"No dividend data")}
+ ${box("🏦 Long Term",s.long,s.long>=70?"Strong backdrop":"Technical backdrop needs caution")}
+ </div><div class="score"><h2 class="${scoreColor(s.short)}">${s.verdict}</h2><p>Short-term score ${s.short}/100. Frequent price swings alone are not treated as a buy signal.</p><div class="bar"><div class="fill" style="width:${s.short}%"></div></div></div></div>
+ <div class="card"><h2>Why this result?</h2><table>${rows.map(r=>`<tr><td>${r[0]}</td><td><b>${r[1]}</b></td></tr>`).join("")}</table></div>`;
+}
+function box(t,s,txt){return `<div class="metric"><h3>${t}</h3><div class="value">${s}/100</div><p class="${scoreColor(s)}">${txt}</p><div class="bar"><div class="fill" style="width:${s}%"></div></div></div>`}
+function analyze(){
+ const q=document.getElementById("q").value.trim();
+ if(!q){document.getElementById("status").textContent="Enter an NSE symbol, e.g. HINDPETRO";return}
+ const x=find(q);
+ if(!x){document.getElementById("status").textContent="Stock not found in the latest GitHub dataset. Try an NSE symbol from the dataset.";document.getElementById("out").innerHTML="";return}
+ document.getElementById("status").textContent="Analysis complete using the latest available GitHub dataset.";
+ render(x,String(pick(x,["symbol","ticker","code"])||q).toUpperCase());
+}
+async function load(){
+ try{let r=await fetch(DATA_URL+"?t="+Date.now()); if(!r.ok)throw new Error(r.status); db=await r.json(); document.getElementById("status").textContent="Dataset loaded. Enter an NSE symbol to analyze."}
+ catch(e){document.getElementById("status").textContent="Could not load GitHub market data. Check your repository data/stocks.json and internet connection."}
+}
+document.getElementById("q").addEventListener("keydown",e=>{if(e.key==="Enter")analyze()});
+load();
+</script></body></html>
